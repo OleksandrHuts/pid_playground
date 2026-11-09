@@ -1,0 +1,213 @@
+﻿<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PID-тренажер · Рівень 1: завеликий P</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span>AP</span><div><b>PID-ТРЕНАЖЕР</b><small id="brandSub">рівень 1 · завеликий P</small></div></div>
+  <div class="bar-right">
+    <select id="levelSelect" class="level-select" aria-label="Вибір рівня"></select>
+    <button class="ghost" id="helpBtn" type="button">Керування</button>
+    <button class="ghost" id="resetBtn" type="button">Скинути</button>
+  </div>
+</header>
+
+<main class="shell">
+  <section class="stage">
+    <div class="stage-head">
+      <div>
+        <p class="eyebrow">Тестовий політ · 5" квадрокоптер</p>
+        <h1 id="levelHeading">Дрон тремтить. Знайдіть причину.</h1>
+        <p class="lead" id="levelIntro">Зліт, 45 секунд у повітрі, посадка. Потім відкрийте GCS, подивіться лог і змініть параметр. Після цього - повторний політ.</p>
+      </div>
+      <div class="mission">
+        <span>Мета</span>
+        <b id="missionTitle">Стабільний hover без тремтіння</b>
+        <small id="missionHint">Не змінюйте параметри навмання: спочатку докази в лозі.</small>
+      </div>
+    </div>
+
+    <div class="game-wrap">
+      <canvas id="scene" width="1000" height="540" aria-label="Вид на дрон у тестовому польоті"></canvas>
+
+      <div class="hud hud-top">
+        <div class="hud-item"><span>РЕЖИМ</span><b>ALT HOLD</b></div>
+        <div class="hud-item"><span>ВИСОТА</span><b id="hudAlt">0.0 м</b></div>
+        <div class="hud-item"><span>ШВИДКІСТЬ</span><b id="hudSpeed">0.0 м/с</b></div>
+        <div class="hud-item"><span>ТАЙМЕР</span><b id="hudTime">45.0 с</b></div>
+        <div class="hud-item"><span>БАТАРЕЯ</span><b id="hudBat">100%</b></div>
+      </div>
+
+      <div class="hud hud-right">
+        <div class="gauge"><span>ОСЦИЛЯЦІЯ RATE</span><div class="bar"><i id="oscBar"></i></div><b id="oscValue">0.0</b></div>
+        <div class="hud-note" id="hudHint">Натисніть «Зліт»</div>
+      </div>
+
+      <div class="overlay" id="startOverlay">
+        <div class="overlay-card">
+          <p class="eyebrow" id="levelKicker">Рівень 1</p>
+          <h2 id="levelTitle">Завеликий P</h2>
+          <p id="levelStory">Дрон уже зібраний і відкалібрований. Проблема - у налаштуванні контуру. Ваше завдання: підняти його, побачити поведінку, знайти докази в лозі та виправити.</p>
+          <ul class="plain">
+            <li><b>W / S</b> - вище / нижче</li>
+            <li><b>A / D</b> - roll</li>
+            <li><b>↑ / ↓</b> - pitch</li>
+            <li><b>Q / E</b> - yaw</li>
+            <li>Можна користуватися кнопками на екрані.</li>
+          </ul>
+          <button class="primary" id="startBtn" type="button">Зліт</button>
+        </div>
+      </div>
+
+      <div class="overlay" id="endOverlay" hidden>
+        <div class="overlay-card">
+          <p class="eyebrow">Політ завершено</p>
+          <h2 id="endTitle">Дані зібрано</h2>
+          <p id="endText">Відкрийте GCS, подивіться логи й знайдіть, що саме викликає тремтіння.</p>
+          <div class="end-actions">
+            <button class="primary" id="openGcsBtn" type="button">Відкрити GCS</button>
+            <button class="ghost" id="againBtn" type="button">Ще політ</button>
+            <button class="primary" id="nextLevelBtn" type="button" hidden>Наступний рівень</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="touch" aria-label="Екранне керування">
+        <div class="touch-col">
+          <button data-key="KeyW" type="button">↑</button>
+          <button data-key="KeyS" type="button">↓</button>
+        </div>
+        <div class="touch-col">
+          <button data-key="KeyA" type="button">←</button>
+          <button data-key="KeyD" type="button">→</button>
+        </div>
+        <div class="touch-col">
+          <button data-key="ArrowUp" type="button">P+</button>
+          <button data-key="ArrowDown" type="button">P−</button>
+        </div>
+        <div class="touch-col">
+          <button data-key="KeyQ" type="button">Y←</button>
+          <button data-key="KeyE" type="button">Y→</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="under-game">
+      <div class="status-strip">
+        <div><span>Польотів</span><b id="flightCount">0</b></div>
+        <div><span>Поточна P</span><b id="currentP">0.180</b></div>
+        <div><span>Діагноз</span><b id="diagState">не підтверджено</b></div>
+        <div><span>Результат</span><b id="scoreState">-</b></div>
+        <button class="ghost" id="landBtn" type="button" hidden>Завершити тест</button>
+      </div>
+      <div class="legend">
+        <span><i class="dot teal"></i> дрон</span>
+        <span><i class="dot amber"></i> ціль</span>
+        <span><i class="dot red"></i> осциляція</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="gcsModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div><p class="eyebrow">GCS-lite / Mission Planner-подібний інтерфейс</p><h2>Аналіз і параметри</h2></div>
+      <button class="icon" id="closeGcs" type="button" aria-label="Закрити">×</button>
+    </div>
+    <div class="tabs">
+      <button class="tab is-active" data-tab="logs" type="button">Логи</button>
+      <button class="tab" data-tab="params" type="button">Параметри</button>
+    </div>
+
+    <div class="tab-panel is-active" data-panel="logs">
+      <div class="log-top">
+        <div>
+          <h3>Політ <span id="logFlightNo">1</span></h3>
+          <p id="logSummary">Тут з'являться графіки після польоту.</p>
+        </div>
+        <div class="log-stats">
+          <div><span>RATE RMS</span><b id="logRms">-</b></div>
+          <div><span>MAX RATE</span><b id="logMax">-</b></div>
+          <div><span>VIBE Z</span><b id="logVibe">-</b></div>
+        </div>
+      </div>
+      <canvas id="logCanvas" width="1000" height="430" aria-label="Графіки RATE, VIBE, BAT"></canvas>
+      <div class="scrub"><label>Час <input id="logTime" type="range" min="0" max="45" step="0.1" value="0"><output id="logTimeOut">0.0 с</output></label></div>
+      <div class="log-readout" id="logReadout">Підведіть курсор до графіка</div>
+
+      <div class="fft-block" id="fftBlock" hidden>
+        <div class="fft-head"><h3>FFT / спектр вібрації</h3><span id="fftPeak">-</span></div>
+        <canvas id="fftCanvas" width="1000" height="170" aria-label="Спектр вібрації"></canvas>
+      </div>
+
+      <div class="evidence">
+        <h3>Що підтверджує причину?</h3>
+        <p class="micro">Виберіть поля, які дійсно показують проблему. Зайві поля не допоможуть.</p>
+        <div class="evidence-grid">
+          <label><input type="checkbox" id="evRate"><span><b>RATE</b> - фактична кутова швидкість коливається навколо цілі</span></label>
+          <label><input type="checkbox" id="evRcou"><span><b>RCOU</b> - мотори чергують, контур бореться сам із собою</span></label>
+          <label><input type="checkbox" id="evVibe"><span><b>VIBE</b> - високий, отже причина механічна</span></label>
+          <label><input type="checkbox" id="evBat"><span><b>BAT</b> - просадка живлення</span></label>
+          <label><input type="checkbox" id="evFft"><span><b>FFT</b> - у спектрі є пік на частоті моторів</span></label>
+          <label><input type="checkbox" id="evAtt"><span><b>ATT</b> - дрон тримає сталий нахил або знос</span></label>
+        </div>
+        <button class="primary" id="checkEvidence" type="button">Перевірити діагноз</button>
+        <p class="feedback" id="evidenceFeedback"></p>
+      </div>
+    </div>
+
+    <div class="tab-panel" data-panel="params">
+      <div class="lock-note" id="paramLock">Спочатку підтвердіть діагноз на вкладці «Логи». Параметри заблоковані.</div>
+      <div class="param-head">
+        <div><h3>Full Parameter List</h3><p class="micro">Змініть значення, натисніть Write Params, потім Reboot.</p><input id="paramSearch" class="param-search" type="search" placeholder="Пошук параметра..."></div>
+        <div class="param-actions">
+          <button class="ghost" id="writeParams" type="button">Write Params</button>
+          <button class="primary" id="rebootBtn" type="button">Reboot</button>
+        </div>
+      </div>
+      <div class="param-table-wrap">
+        <table class="param-table">
+          <thead><tr><th>Параметр</th><th>Значення</th><th>Одиниці</th><th>Що це</th></tr></thead>
+          <tbody id="paramBody"></tbody>
+        </table>
+      </div>
+      <div class="param-note">
+        <b>Підказка:</b> <span id="paramHint">VIBE у цьому рівні нормальний. Якщо ви починаєте з фільтра, а не з PID, ви не вирішите причину.</span>
+      </div>
+      <p class="feedback" id="paramFeedback"></p>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="helpModal" hidden>
+  <div class="modal-card small">
+    <div class="modal-head"><h2>Керування</h2><button class="icon" id="closeHelp" type="button" aria-label="Закрити">×</button></div>
+    <div class="help-grid">
+      <div><b>W / S</b><span>вище / нижче</span></div>
+      <div><b>A / D</b><span>roll ліворуч / праворуч</span></div>
+      <div><b>↑ / ↓</b><span>pitch вперед / назад</span></div>
+      <div><b>Q / E</b><span>yaw ліворуч / праворуч</span></div>
+    </div>
+    <p class="micro">Дрон у режимі assist hover: він сам тримає висоту й рівень, коли ви не тиснете стіки. Це зроблено, щоб ви дивилися на реакцію PID, а не боролися з пілотуванням.</p>
+  </div>
+</div>
+
+<footer class="foot">
+  <p>Навчальна модель, не справжній ArduPilot. Не є інструкцією для реального польоту без підготовки.</p>
+</footer>
+
+<noscript><div class="noscript">Для гри потрібен JavaScript.</div></noscript>
+<script src="app.js"></script>
+</body>
+</html>
+
+
+
+
+
+
